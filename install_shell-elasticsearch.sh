@@ -5,15 +5,11 @@ HOME=$(cd $(dirname $0) && pwd)
 ## Check file
 
 yum -y update
-yum -y install vim wget tcpdump openssh-clients unzip
+yum -y install vim wget tcpdump openssh-clients unzip ntp
 
 echo "check MakeDependency Checking"
 
-if [ `yum list | grep openjdk | wc -l` !=  22 ];then
-	echo "Installing OpenJDK. Please wait..."
-
-	yum -y install java-1.8.0-openjdk-headless
-fi
+[[ `yum list | grep openjdk | wc -l` -ne  22 ]] && echo "Installing OpenJDK. Please wait..." && yum -y install java-1.8.0-openjdk-headless
 
 # Create repository
 
@@ -142,24 +138,24 @@ if [ `rpm -qa | grep packetbeat | wc -l` != "1" ];then
 	cd ${HOME}/temp
 	curl -L -O https://download.elastic.co/beats/packetbeat/packetbeat-1.3.1-x86_64.rpm
 	sudo rpm -vi packetbeat-1.3.1-x86_64.rpm
-	curl -XPUT 'http://ec2-54-249-53-94.ap-northeast-1.compute.amazonaws.com:9200/_template/packetbeat' -d @/etc/packetbeat/packetbeat.template.json
+	curl -XPUT 'http://$elastic:9200/_template/packetbeat' -d @/etc/packetbeat/packetbeat.template.json
 	yum -y install git
 	git clone https://github.com/elastic/beats-dashboards.git
 	cd beats-dashboards/
-	bash ./load.sh -url 'ec2-54.238.160.151.ap-northeast-1.compute.amazonaws.com:9200'
+	bash ./load.sh -url '$elastic.com:9200'
 	chkconfig filebeat on
 	/etc/init.d/packetbeat stop
 	/etc/init.d/packetbeat start
 fi
 
-#rm -rf ${HOME}/temp
+rm -rf ${HOME}/temp
 
 if [ `rpm -qa | grep topbeat | wc -l` != "1" ];then
 	mkdir ${HOME}/temp
 	cd ${HOME}/temp
 	curl -L -O https://download.elastic.co/beats/topbeat/topbeat-1.3.1-x86_64.rpm
 	rpm -vi topbeat-1.3.1-x86_64.rpm
-	curl -XPUT 'http://ec2-54.238.160.151.ap-northeast-1.compute.amazonaws.com:9200/_template/topbeat' -d@/etc/topbeat/topbeat.template.json
+	curl -XPUT 'http://$elastic:9200/_template/topbeat' -d@/etc/topbeat/topbeat.template.json
 	/etc/init.d/topbeat stop
 	/etc/init.d/topbeat start
 	chkconfig topbeat on
@@ -167,36 +163,8 @@ if [ `rpm -qa | grep topbeat | wc -l` != "1" ];then
 	/etc/init.d/topbeat start
 fi
 
-#rm -rf ${HOME}/temp
+rm -rf ${HOME}/temp
 
-
-## to renew file "/etc/elasticsearch/elasticsearch.yml"
-
-#echo "to renew a config file [/etc/elasticsearch/elasticsearch.yml]"
-#echo -e "\nPlease enter this host IP addr : ";read addr
-#sed "s/#network.host: 192.168.0.1/network.host: ${addr}/" /etc/elasticsearch/elasticsearch.yml
-#echo "Are you ok with this? [y]es/[n]o:";read answer
-
-#case $answer in
-#y)
-#cp /etc/elasticsearch/elasticsearch.yml /etc/elasticsearch/elasticsearch.yml.backup
-#sed 's/#network.host: 192.168.0.1/network.host: ${addr}/' /etc/elasticsearch/elasticsearch.yml
-#sdiff /etc/elasticsearch/elasticsearch.yml /etc/elasticsearch/elasticsearch.yml.backup
-#
-#cp /opt/kibana/config/kibana.yml /opt/kibana/config/kibana.ymll.backup
-#sed -i 's/# elasticsearch.url: "http:\/\/localhost:9200"/elasticsearch.url: "http:\/\/$addr:9200"/' /opt/kibana/config/kibana.yml
-#sdiff /opt/kibana/config/kibana.yml /opt/kibana/config/kibana.yml.backup
-#
-#;;
-#
-#n)
-#echo "Need to renew this file"
-#echo "/etc/elasticsearch/elasticsearch.yml"
-#echo "/opt/kibana/config/kibana.yml"
-#;;
-#esac
-
-cp /usr/share/zoneinfo/Japan /etc/localtime
 /etc/init.d/ntpd restart
 
 exit 0
